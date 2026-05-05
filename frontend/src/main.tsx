@@ -61,8 +61,8 @@ function App() {
   const [selectedDocument, setSelectedDocument] = useState<DocumentDetail | null>(null);
   const [stats, setStats] = useState<Stats>(emptyStats);
   const [authMode, setAuthMode] = useState<"login" | "register">("login");
-  const [email, setEmail] = useState("demo@synapse.ai");
-  const [password, setPassword] = useState("strong-password");
+  const [email, setEmail] = useState("demo@mail.com");
+  const [password, setPassword] = useState("demo@12345");
   const [fullName, setFullName] = useState("Demo User");
   const [file, setFile] = useState<File | null>(null);
   const [renameValue, setRenameValue] = useState("");
@@ -89,7 +89,7 @@ function App() {
       let message = `Request failed with ${response.status}`;
       try {
         const body = await response.json();
-        message = body.detail || message;
+        message = formatApiError(body.detail) || message;
       } catch {
         // keep default message
       }
@@ -121,13 +121,26 @@ function App() {
     setBusy(true);
     setError("");
     setNotice("");
+    const authValidationError = validateAuthForm();
+    if (authValidationError) {
+      setError(authValidationError);
+      setBusy(false);
+      return;
+    }
     try {
       if (authMode === "register") {
-        await request<User>("/auth/register", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ email, password, full_name: fullName }),
-        });
+        try {
+          await request<User>("/auth/register", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ email, password, full_name: fullName }),
+          });
+        } catch (registerError) {
+          const message = registerError instanceof Error ? registerError.message : "Registration failed";
+          if (!message.toLowerCase().includes("already registered")) {
+            throw registerError;
+          }
+        }
       }
 
       const result = await request<{ access_token: string; user: User }>("/auth/login", {
@@ -138,7 +151,7 @@ function App() {
       localStorage.setItem("synapse_token", result.access_token);
       setToken(result.access_token);
       setUser(result.user);
-      setNotice("Signed in successfully.");
+      setNotice(authMode === "register" ? "Account ready. Signed in successfully." : "Signed in successfully.");
     } catch (authError) {
       setError(authError instanceof Error ? authError.message : "Authentication failed");
     } finally {
@@ -237,6 +250,14 @@ function App() {
     setNotice("Signed out.");
   }
 
+  function validateAuthForm() {
+    if (!email.trim()) return "Email is required.";
+    if (!email.includes("@")) return "Enter a valid email address.";
+    if (password.length < 8) return "Password must be at least 8 characters.";
+    if (authMode === "register" && fullName.length > 255) return "Full name must be 255 characters or fewer.";
+    return "";
+  }
+
   if (!token) {
     return (
       <main className="auth-shell">
@@ -274,8 +295,14 @@ function App() {
             </label>
             <label>
               Password
-              <input type="password" value={password} onChange={(event) => setPassword(event.target.value)} />
+              <input
+                type="password"
+                minLength={8}
+                value={password}
+                onChange={(event) => setPassword(event.target.value)}
+              />
             </label>
+            <p className="field-hint">Use at least 8 characters. Demo: demo@mail.com / demo@12345</p>
             <button className="primary-action" disabled={busy}>
               {busy ? "Working..." : authMode === "login" ? "Login" : "Create account"}
             </button>
@@ -408,6 +435,27 @@ function App() {
 function Feedback({ notice, error }: { notice: string; error: string }) {
   if (!notice && !error) return null;
   return <div className={error ? "feedback error" : "feedback success"}>{error || notice}</div>;
+}
+
+function formatApiError(detail: unknown): string {
+  if (!detail) return "";
+  if (typeof detail === "string") return detail;
+  if (Array.isArray(detail)) {
+    return detail
+      .map((item) => {
+        if (typeof item === "string") return item;
+        if (item && typeof item === "object") {
+          const record = item as { msg?: unknown; loc?: unknown };
+          const location = Array.isArray(record.loc) ? record.loc.filter((part) => part !== "body").join(".") : "";
+          const message = typeof record.msg === "string" ? record.msg : JSON.stringify(item);
+          return location ? `${location}: ${message}` : message;
+        }
+        return String(item);
+      })
+      .join(" ");
+  }
+  if (typeof detail === "object") return JSON.stringify(detail);
+  return String(detail);
 }
 
 function StatCard({ label, value, icon }: { label: string; value: number; icon: React.ReactNode }) {

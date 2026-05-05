@@ -153,6 +153,13 @@ label {
   font-weight: 700;
 }
 
+.field-hint {
+  margin: -4px 0 0;
+  color: #647789;
+  font-size: 0.86rem;
+  line-height: 1.45;
+}
+
 input {
   width: 100%;
   min-height: 42px;
