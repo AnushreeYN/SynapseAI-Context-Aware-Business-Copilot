@@ -127,6 +127,14 @@ npm.cmd install --prefix frontend
 .\start-dev.ps1
 ```
 
+`start-dev.ps1` forces the local backend to use SQLite:
+
+```text
+sqlite:///./synapseai.db
+```
+
+This avoids accidentally using Docker's internal PostgreSQL hostname, `postgres`, when running Uvicorn directly on Windows.
+
 Open:
 
 ```text
@@ -140,6 +148,9 @@ Backend health: http://127.0.0.1:8001/health
 ```powershell
 cd backend
 python -m pip install -r requirements.txt
+$env:DATABASE_URL="sqlite:///./synapseai.db"
+$env:SECRET_KEY="local-dev-secret-key"
+$env:BACKEND_CORS_ORIGINS="http://localhost:5174,http://127.0.0.1:5174"
 python -m uvicorn app.main:app --host 127.0.0.1 --port 8001 --reload
 ```
 
@@ -184,6 +195,8 @@ BACKEND_CORS_ORIGINS=http://localhost:3000,http://localhost:5173,http://127.0.0.
 UPLOAD_DIR=storage/uploads
 MAX_UPLOAD_MB=25
 ```
+
+Important: the hostname `postgres` works only inside Docker Compose. If you run the backend directly with `uvicorn`, use SQLite locally or point `DATABASE_URL` to a real local PostgreSQL host such as `localhost`.
 
 Frontend example: `frontend/.env.example`
 
@@ -295,6 +308,7 @@ Use these to test document upload and extraction.
 - `frontend/node_modules`, `frontend/dist`, local database files, logs, and uploaded files are ignored by Git.
 - `backend/storage/uploads/.gitkeep` is committed so the upload directory exists.
 - The default local backend database is SQLite unless `DATABASE_URL` points to PostgreSQL.
+- If Uvicorn fails with `failed to resolve host 'postgres'`, your local process is reading the Docker database URL. Run `.\start-dev.ps1` or set `$env:DATABASE_URL="sqlite:///./synapseai.db"` before starting the backend.
 - Production should use PostgreSQL, object storage such as S3, background workers, and a managed vector database or pgvector.
 
 ## Roadmap

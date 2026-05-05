@@ -5,8 +5,9 @@ $backend = Join-Path $root "backend"
 $frontend = Join-Path $root "frontend"
 
 Write-Host "Starting SynapseAI backend on http://127.0.0.1:8001"
-Start-Process -FilePath "C:\Python314\python.exe" `
-  -ArgumentList "-m","uvicorn","app.main:app","--host","127.0.0.1","--port","8001","--reload" `
+$backendCommand = "set DATABASE_URL=sqlite:///./synapseai.db&& set SECRET_KEY=local-dev-secret-key&& set BACKEND_CORS_ORIGINS=http://localhost:5174,http://127.0.0.1:5174&& C:\Python314\python.exe -m uvicorn app.main:app --host 127.0.0.1 --port 8001 --reload"
+Start-Process -FilePath "cmd.exe" `
+  -ArgumentList "/k", $backendCommand `
   -WorkingDirectory $backend
 
 Write-Host "Starting SynapseAI frontend on http://127.0.0.1:5174"
