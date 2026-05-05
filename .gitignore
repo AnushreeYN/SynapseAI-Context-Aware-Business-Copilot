@@ -216,3 +216,13 @@ __marimo__/
 
 # Streamlit
 .streamlit/secrets.toml
+
+# SynapseAI local artifacts
+frontend/node_modules/
+frontend/dist/
+backend/storage/uploads/*
+!backend/storage/uploads/.gitkeep
+backend/*.db
+backend/*.db-journal
+backend/*.log
+backend/pytest-cache-files-*/
